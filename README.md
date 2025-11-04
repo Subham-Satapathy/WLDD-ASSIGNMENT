@@ -161,6 +161,7 @@ http://localhost:3000/api-docs
 - GET `/api/tasks/filter` - Get filtered tasks by status
 
    # Redis (macOS with Homebrew)
+   ```
    brew services start redis
    ```
 
