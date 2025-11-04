@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { createClient } = require('redis');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const authRoutes = require('./routes/auth');
 const taskRoutes = require('./routes/tasks');
@@ -32,8 +34,8 @@ if (process.env.NODE_ENV !== 'test') {
 // Make Redis client available throughout the app
 app.set('redisClient', redisClient);
 
-// Make Redis client available throughout the app
-app.set('redisClient', redisClient);
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use('/api/auth', authRoutes);

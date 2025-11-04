@@ -32,7 +32,7 @@ const taskSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create index on owner and status for better query performance
 taskSchema.index({ owner: 1, status: 1 });
+taskSchema.index({ owner: 1, title: 1, dueDate: 1 });
 
 module.exports = mongoose.model('Task', taskSchema);

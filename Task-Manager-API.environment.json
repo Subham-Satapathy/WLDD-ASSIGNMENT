@@ -1,0 +1,103 @@
+{
+  "id": "your-environment-id",
+  "name": "Task Manager API Environment",
+  "_postman_variable_scope": "environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "testEmail",
+      "value": "test@example.com",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "testPassword",
+      "value": "password123",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "testName",
+      "value": "Test User",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "taskTitle",
+      "value": "Test Task",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "taskDescription",
+      "value": "This is a test task",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "taskStatus",
+      "value": "pending",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "taskDueDate",
+      "value": "2025-12-01",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "updatedTaskTitle",
+      "value": "Updated Task Title",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "updatedTaskDescription",
+      "value": "Updated task description",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "updatedTaskStatus",
+      "value": "completed",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "updatedTaskDueDate",
+      "value": "2025-12-31",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "enabled": true
+    },
+    {
+      "key": "isRegistered",
+      "value": "false",
+      "type": "string",
+      "enabled": true
+    }
+  ]
+}

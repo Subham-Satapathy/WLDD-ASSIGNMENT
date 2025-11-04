@@ -9,12 +9,17 @@ describe('Auth Middleware', () => {
   let mockNext;
   let mockUser;
 
-  beforeEach(() => {
-    mockUser = {
-      _id: new mongoose.Types.ObjectId(),
+  beforeAll(() => {
+    process.env.JWT_SECRET = 'test-secret-key';
+  });
+
+  beforeEach(async () => {
+    mockUser = new User({
       name: 'Test User',
-      email: 'test@example.com'
-    };
+      email: 'test@example.com',
+      password: 'password123'
+    });
+    await mockUser.save();
 
     mockReq = {
       header: jest.fn()

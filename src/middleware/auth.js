@@ -9,15 +9,29 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!decoded || !decoded.userId) {
+        return res.status(401).json({ message: 'Invalid authentication token' });
+      }
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token has expired' });
+      }
+      return res.status(401).json({ message: 'Invalid authentication token' });
     }
 
-    req.user = user;
-    next();
+    try {
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      req.user = user;
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: 'Invalid authentication token' });
+    }
   } catch (error) {
     res.status(401).json({ message: 'Invalid authentication token' });
   }

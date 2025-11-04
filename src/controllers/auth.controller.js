@@ -1,9 +1,6 @@
 const { validationResult } = require('express-validator');
 const authService = require('../services/auth.service');
 
-/**
- * Sign up new user
- */
 exports.signup = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -22,9 +19,6 @@ exports.signup = async (req, res) => {
   }
 };
 
-/**
- * Login user
- */
 exports.login = async (req, res) => {
   try {
     const errors = validationResult(req);

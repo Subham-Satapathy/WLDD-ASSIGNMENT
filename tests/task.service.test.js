@@ -225,7 +225,7 @@ describe('Task Service', () => {
 
       expect(tasks).toHaveLength(1);
       expect(tasks[0].status).toBe('pending');
-      expect(new Date(tasks[0].dueDate)).toBeLessThanOrEqual(new Date('2025-12-01'));
+      expect(new Date(tasks[0].dueDate).getTime()).toBeLessThanOrEqual(new Date('2025-12-01').getTime());
     });
 
     it('should only return tasks for specified user', async () => {
@@ -233,7 +233,8 @@ describe('Task Service', () => {
       await Task.create({
         title: 'Other User Task',
         status: 'pending',
-        owner: otherUserId
+        owner: otherUserId,
+        dueDate: new Date('2025-11-15')
       });
 
       const tasks = await taskService.getFilteredTasks({}, userId);

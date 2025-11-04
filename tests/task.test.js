@@ -1,11 +1,10 @@
 const request = require('supertest');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
-const { createClient } = require('redis-mock');
 const Task = require('../src/models/task.model');
 const redisService = require('../src/services/redis.service');
 const { setupTestUser } = require('./setup');
 const app = require('../src/index');
+const { ValidationError, NotFoundError } = require('../src/utils/errors');
 
 describe('Task Endpoints', () => {
   let authToken;
@@ -48,6 +47,96 @@ describe('Task Endpoints', () => {
       expect(Array.isArray(res.body)).toBeTruthy();
       expect(res.body.length).toBe(2);
       expect(res.body.find(t => t.title === 'Test Task 1')).toBeTruthy();
+    });
+
+    describe('Duplicate Task Handling', () => {
+      it('should prevent creating exact duplicate tasks', async () => {
+        const taskData = {
+          title: 'Test Task',
+          description: 'Test Description',
+          dueDate: new Date('2025-12-01T10:00:00Z')
+        };
+
+        // Create first task
+        const res1 = await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(taskData);
+
+        expect(res1.statusCode).toBe(201);
+
+        // Try to create exact duplicate
+        const res2 = await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(taskData);
+
+        expect(res2.statusCode).toBe(409);
+        expect(res2.body.error).toBeTruthy();
+        expect(res2.body.details).toHaveProperty('existingTaskId');
+      });
+
+      it('should prevent creating tasks with same title within 24 hours', async () => {
+        const baseDate = new Date('2025-12-01T10:00:00Z');
+        
+        // Create first task
+        const firstTask = {
+          title: 'Test Task',
+          description: 'Test Description',
+          dueDate: baseDate
+        };
+
+        await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(firstTask);
+
+        // Try to create task with same title but 23 hours later
+        const similarTask = {
+          title: 'Test Task',
+          description: 'Different Description',
+          dueDate: new Date(baseDate.getTime() + 23 * 60 * 60 * 1000)
+        };
+
+        const res = await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(similarTask);
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.details.duplicateReason).toBe('Same title and timeframe');
+      });
+
+      it('should allow creating tasks with same title but different dates', async () => {
+        const baseDate = new Date('2025-12-01T10:00:00Z');
+        
+        // Create first task
+        const firstTask = {
+          title: 'Test Task',
+          description: 'Test Description',
+          dueDate: baseDate
+        };
+
+        await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(firstTask);
+
+        // Create task with same title but 48 hours later
+        const differentTask = {
+          title: 'Test Task',
+          description: 'Test Description',
+          dueDate: new Date(baseDate.getTime() + 48 * 60 * 60 * 1000)
+        };
+
+        const res = await request(app)
+          .post('/api/tasks')
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(differentTask);
+
+        expect(res.statusCode).toBe(201);
+        expect(res.body).toHaveProperty('_id');
+      });
     });
 
     it('should return cached tasks if available', async () => {

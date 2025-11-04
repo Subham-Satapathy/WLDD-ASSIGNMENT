@@ -7,6 +7,7 @@ const app = require('../src/index'); // Make sure to export app in index.js
 
 describe('Auth Endpoints', () => {
   beforeAll(async () => {
+    process.env.JWT_SECRET = 'test-secret-key';
     // Connection is handled by setup.js
   });
 

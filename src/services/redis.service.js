@@ -10,7 +10,6 @@ class RedisService {
     this.client.connect();
   }
 
-  // Get cached data
   async get(key) {
     try {
       const data = await this.client.get(key);
@@ -21,7 +20,6 @@ class RedisService {
     }
   }
 
-  // Set data in cache with expiration
   async set(key, value, expireInSeconds = 3600) {
     try {
       await this.client.set(key, JSON.stringify(value), {

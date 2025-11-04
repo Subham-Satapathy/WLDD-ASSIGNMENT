@@ -5,6 +5,10 @@ const User = require('../src/models/user.model');
 const authService = require('../src/services/auth.service');
 
 describe('Auth Service', () => {
+  beforeAll(() => {
+    process.env.JWT_SECRET = 'test-secret-key';
+  });
+
   beforeEach(async () => {
     await User.deleteMany({});
   });

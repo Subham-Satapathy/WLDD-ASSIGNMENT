@@ -10,7 +10,6 @@ class AuthService {
   async signup(userData) {
     const { name, email, password } = userData;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       const error = new Error('Email already registered');
@@ -18,11 +17,8 @@ class AuthService {
       throw error;
     }
 
-    // Create new user
     const user = new User({ name, email, password });
     await user.save();
-
-    // Generate JWT token
     const token = this.generateToken(user._id);
 
     return { user, token };
@@ -35,15 +31,12 @@ class AuthService {
    * @returns {Promise<{user: Object, token: string}>}
    */
   async login(email, password) {
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       const error = new Error('Invalid credentials');
       error.statusCode = 401;
       throw error;
     }
-
-    // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       const error = new Error('Invalid credentials');

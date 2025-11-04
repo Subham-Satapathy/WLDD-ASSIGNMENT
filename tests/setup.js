@@ -5,7 +5,6 @@ const User = require('../src/models/user.model');
 
 let mongoServer;
 
-// Ensure we don't try to connect multiple times
 const connect = async () => {
   if (mongoose.connection.readyState !== 0) {
     return;
@@ -88,9 +87,12 @@ const setupTestUser = async (email = 'test@example.com') => {
   });
   await user.save();
 
+  // Ensure we have a consistent JWT_SECRET for tests
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
+
   const token = jwt.sign(
     { userId: user._id },
-    process.env.JWT_SECRET || 'test-secret',
+    process.env.JWT_SECRET,
     { expiresIn: '1h' }
   );
 

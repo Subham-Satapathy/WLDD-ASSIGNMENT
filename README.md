@@ -11,7 +11,8 @@ A robust Node.js backend application for tracking tasks with MongoDB persistence
 - **Error Handling**: Centralized error handling with detailed responses
 - **Input Validation**: Request validation with detailed error messages
 - **Task Filtering**: Filter tasks by status and due date
-- **Documentation**: Comprehensive API documentation
+- **API Documentation**: Interactive Swagger/OpenAPI documentation
+- **Documentation**: Comprehensive API and code documentation
 
 ## Tech Stack
 
@@ -21,27 +22,49 @@ A robust Node.js backend application for tracking tasks with MongoDB persistence
 - **Redis**: High-performance caching layer
 - **JWT**: Secure authentication mechanism
 - **Jest**: Comprehensive testing framework
+- **Swagger/OpenAPI**: Interactive API documentation
+- **Swagger UI Express**: API documentation visualization
 
 ## Project Structure
 
 ```
 src/
 ├── config/         # Configuration files
+│   └── swagger.js  # Swagger/OpenAPI configuration
 ├── controllers/    # Route controllers (HTTP layer)
+│   ├── auth.controller.js
+│   └── task.controller.js
 ├── middleware/     # Custom middleware
+│   ├── auth.js
+│   └── errorHandler.js
 ├── models/         # Mongoose models
+│   ├── task.model.js
+│   └── user.model.js
 ├── routes/         # Express routes
+│   ├── auth.js
+│   └── tasks.js
 ├── services/       # Business logic layer
 │   ├── auth.service.js     # Authentication logic
 │   ├── task.service.js     # Task management logic
 │   └── redis.service.js    # Caching logic
 ├── utils/         # Utility functions
+│   └── errors.js
 └── index.js       # App entry point
 
-tests/
-├── auth.service.test.js    # Authentication tests
-├── task.service.test.js    # Task service tests
-└── controllers/            # Controller tests
+tests/             # Test files
+├── auth.middleware.test.js
+├── auth.service.test.js
+├── auth.test.js
+├── errorHandler.test.js
+├── redis.test.js
+├── setup.js
+├── task.service.test.js
+├── task.test.js
+└── user.model.test.js
+
+Docker Files:
+├── docker-compose.yml    # Docker Compose configuration
+└── Dockerfile           # Node.js application container configuration
 ```
 
 ## Getting Started
@@ -97,6 +120,45 @@ JWT_EXPIRY=24h  # Token expiry time
    ```bash
    # MongoDB (macOS with Homebrew)
    brew services start mongodb-community
+   ```
+
+## API Documentation
+
+The API is documented using Swagger/OpenAPI specification. Once the application is running, you can access the interactive API documentation at:
+
+```
+http://localhost:3000/api-docs
+```
+
+### Features of the API Documentation
+
+- **Interactive Documentation**: Test API endpoints directly from the browser
+- **Authentication Support**: Built-in JWT authentication interface
+- **Request/Response Examples**: Clear examples for all endpoints
+- **Schema Definitions**: Detailed data models and validation rules
+- **Error Responses**: Comprehensive error documentation
+
+### Using the API Documentation
+
+1. Navigate to `http://localhost:3000/api-docs` in your browser
+2. To test authenticated endpoints:
+   - First, use the `/api/auth/signup` or `/api/auth/login` endpoint to get a JWT token
+   - Click the "Authorize" button at the top of the page
+   - Enter your JWT token in the format: `Bearer your_token_here`
+   - Now you can test any authenticated endpoint
+
+### Available Endpoints
+
+#### Authentication
+- POST `/api/auth/signup` - Register a new user
+- POST `/api/auth/login` - Login and receive JWT token
+
+#### Tasks
+- GET `/api/tasks` - Get all tasks
+- POST `/api/tasks` - Create a new task
+- PUT `/api/tasks/{id}` - Update a task
+- DELETE `/api/tasks/{id}` - Delete a task
+- GET `/api/tasks/filter` - Get filtered tasks by status
 
    # Redis (macOS with Homebrew)
    brew services start redis
