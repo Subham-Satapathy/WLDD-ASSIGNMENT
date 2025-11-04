@@ -1,13 +1,11 @@
-const { createClient } = require('redis');
+const Redis = require('ioredis');
 
 class RedisService {
   constructor() {
-    this.client = createClient({
-      url: process.env.REDIS_URL
-    });
+    this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
     this.client.on('error', (err) => console.error('Redis Client Error', err));
-    this.client.connect();
+    this.client.on('connect', () => console.log('Redis connected'));
   }
 
   async get(key) {
@@ -22,9 +20,7 @@ class RedisService {
 
   async set(key, value, expireInSeconds = 3600) {
     try {
-      await this.client.set(key, JSON.stringify(value), {
-        EX: expireInSeconds
-      });
+      await this.client.set(key, JSON.stringify(value), 'EX', expireInSeconds);
     } catch (error) {
       console.error('Redis SET Error:', error);
     }

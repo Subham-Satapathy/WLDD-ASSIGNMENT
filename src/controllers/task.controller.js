@@ -15,12 +15,24 @@ exports.createTask = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Invalid input', errors.array());
+      const formattedErrors = errors.array().map(err => ({
+        field: err.param,
+        message: err.msg,
+        value: err.value
+      }));
+      throw new ValidationError('Validation Error', formattedErrors);
     }
 
     const task = await taskService.createTask(req.body, req.user._id);
     res.status(201).json(task);
   } catch (error) {
+    if (error.statusCode === 409) {
+      error.statusCode = 409;
+    } else if (error.name === 'ValidationError') {
+      error.statusCode = 400;
+    } else if (!error.statusCode) {
+      error.statusCode = 500;
+    }
     next(error);
   }
 };
@@ -29,15 +41,22 @@ exports.updateTask = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      throw new ValidationError('Invalid input', errors.array());
+      throw new ValidationError('Invalid updates', errors.array());
     }
 
     const task = await taskService.updateTask(req.params.id, req.body, req.user._id);
     if (!task) {
       throw new NotFoundError('Task not found');
     }
-    res.json(task);
+    res.status(200).json(task);
   } catch (error) {
+    if (error.name === 'CastError') {
+      error.statusCode = 400;
+    }
+    if (error.name === 'ValidationError' && error.message !== 'Invalid updates') {
+      error.statusCode = 400;
+      error.message = 'Invalid updates';
+    }
     next(error);
   }
 };

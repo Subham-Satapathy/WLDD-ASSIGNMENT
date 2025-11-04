@@ -1,7 +1,6 @@
 const request = require('supertest');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
-const { createClient } = require('redis-mock');
 const User = require('../src/models/user.model');
 const app = require('../src/index'); // Make sure to export app in index.js
 
@@ -76,7 +75,7 @@ describe('Auth Endpoints', () => {
           password: 'password456'
         });
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(409);
       expect(res.body).toHaveProperty('message', 'Email already registered');
     });
   });

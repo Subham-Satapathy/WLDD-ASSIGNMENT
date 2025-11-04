@@ -1,40 +1,64 @@
-const { validationResult } = require('express-validator');
 const authService = require('../services/auth.service');
+const { DatabaseError } = require('../utils/errors');
 
-exports.signup = async (req, res) => {
+exports.signup = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { user, token } = await authService.signup(req.body);
-    res.status(201).json({ user, token });
-  } catch (error) {
-    const status = error.statusCode || 500;
-    res.status(status).json({ 
-      message: error.statusCode ? error.message : 'Error creating user',
-      error: error.message 
+    res.status(201).json({
+      user,
+      token,
+      message: 'User created successfully'
     });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      error.statusCode = 400;
+      error.errorCode = 'VALIDATION_ERROR';
+      error.errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
+      next(error);
+    } else if (error.message === 'Email already registered') {
+      error.statusCode = 409;
+      error.errorCode = 'EMAIL_EXISTS';
+      next(error);
+    } else if (error.name === 'DatabaseError' || error.errorCode === 'INTERNAL_ERROR') {
+      next(error);
+    } else {
+      const dbError = new DatabaseError('Error creating user');
+      dbError.statusCode = 500;
+      dbError.errorCode = 'INTERNAL_ERROR';
+      next(dbError);
+    }
   }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password } = req.body;
     const { user, token } = await authService.login(email, password);
     
-    res.json({ user, token });
+    res.status(200).json({ user, token });
   } catch (error) {
-    const status = error.statusCode || 500;
-    res.status(status).json({ 
-      message: error.statusCode ? error.message : 'Error logging in',
-      error: error.message 
-    });
+    if (error.name === 'ValidationError') {
+      error.statusCode = 400;
+      error.errorCode = 'VALIDATION_ERROR';
+      error.errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
+      next(error);
+    } else if (error.name === 'AuthenticationError' || error.errorCode === 'INVALID_CREDENTIALS') {
+      next(error);
+    } else if (error.name === 'DatabaseError' || error.errorCode === 'INTERNAL_ERROR') {
+      next(error);
+    } else {
+      const dbError = new DatabaseError('Error logging in');
+      dbError.statusCode = 500;
+      dbError.errorCode = 'INTERNAL_ERROR';
+      next(dbError);
+    }
   }
 };

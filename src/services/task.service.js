@@ -1,12 +1,13 @@
-const Task = require('../models/task.model');
-const redisService = require('./redis.service');
+const Task = require("../models/task.model");
+const redisService = require("./redis.service");
+const { 
+  AppError,
+  ValidationError,
+  NotFoundError,
+  DatabaseError
+} = require("../utils/errors");
 
 class TaskService {
-  /**
-   * Get all tasks for a user
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} List of tasks
-   */
   async getTasks(userId) {
     try {
       const cacheKey = redisService.generateTasksCacheKey(userId);
@@ -16,173 +17,211 @@ class TaskService {
         return cachedTasks;
       }
 
-      const tasks = await Task.find({ owner: userId })
-        .sort({ createdAt: -1 });
+      const tasks = await Task.find({ owner: userId }).sort({ createdAt: -1 });
       await redisService.set(cacheKey, tasks, 3600);
-
       return tasks;
     } catch (error) {
-      throw new Error('Error fetching tasks');
+      throw new DatabaseError("Error fetching tasks");
     }
   }
 
-  /**
-   * Create a new task
-   * @param {Object} taskData - Task data
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Created task
-   */
   async createTask(taskData, userId) {
-    const dueDate = new Date(taskData.dueDate);
-    if (isNaN(dueDate.getTime())) {
-      throw new Error('Invalid due date format');
-    }
-    const duplicateQuery = {
-      owner: userId,
-      title: taskData.title,
-      $or: [
-        // Exact title and description match
-        {
-          description: taskData.description || null,
-          dueDate: dueDate
-        },
-        // Same title, due date within 24 hours, and pending status
-        {
-          dueDate: {
-            $gte: new Date(dueDate.getTime() - 24 * 60 * 60 * 1000),
-            $lte: new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
-          },
-          status: 'pending'
-        }
-      ]
-    };
-
-    const existingTask = await Task.findOne(duplicateQuery);
-
-    if (existingTask) {
-      const error = new Error('A similar task already exists');
-      error.details = {
-        existingTaskId: existingTask._id,
-        duplicateReason: existingTask.title === taskData.title ? 
-          'Same title and timeframe' : 'Exact task match'
-      };
-      error.statusCode = 409; // Conflict
-      throw error;
-    }
-
-    const task = new Task({
-      ...taskData,
-      owner: userId
-    });
-
     try {
-      await task.save();
-      
-      // Invalidate tasks cache for this user
-      await this.invalidateUserCache(userId);
-      
-      return task;
-    } catch (error) {
-      if (error.name === 'ValidationError') {
-        throw error; // Let validation errors through
+      const dueDate = new Date(taskData.dueDate);
+      if (isNaN(dueDate.getTime())) {
+        const valError = new ValidationError("Invalid due date format", [
+          { field: "dueDate", message: "Date format is invalid" }
+        ]);
+        valError.statusCode = 400;
+        throw valError;
       }
-      throw new Error('Error creating task');
-    }
-  }
 
-  /**
-   * Update a task
-   * @param {string} taskId - Task ID
-   * @param {Object} updates - Fields to update
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Updated task
-   */
-  async updateTask(taskId, updates, userId) {
-    // Validate update fields
-    const allowedUpdates = ['title', 'description', 'status', 'dueDate'];
-    const isValidOperation = Object.keys(updates)
-      .every(update => allowedUpdates.includes(update));
+      // Check for exact duplicate first
+      const exactDuplicate = await Task.findOne({
+        owner: userId,
+        title: taskData.title,
+        description: taskData.description || null,
+        dueDate: dueDate,
+        status: taskData.status || 'pending'
+      });
 
-    if (!isValidOperation) {
-      const error = new Error('Invalid updates');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    let task;
-    try {
-      task = await Task.findOne({ _id: taskId, owner: userId });
-
-      if (!task) {
-        const error = new Error('Task not found');
-        error.statusCode = 404;
+      if (exactDuplicate) {
+        const error = new AppError("Duplicate task found", 409, "DUPLICATE_TASK");
+        error.details = {
+          existingTaskId: exactDuplicate._id,
+          duplicateReason: "Exact task match"
+        };
         throw error;
       }
+
+      // Check for tasks with same title in 24 hour window
+      const similarTask = await Task.findOne({
+        owner: userId,
+        title: taskData.title,
+        dueDate: {
+          $gte: new Date(dueDate.getTime() - 24 * 60 * 60 * 1000),
+          $lte: new Date(dueDate.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: "pending"
+      });
+
+      if (similarTask && similarTask._id.toString() !== exactDuplicate?._id.toString()) {
+        const error = new AppError("Similar task exists", 409, "DUPLICATE_TASK");
+        error.details = {
+          existingTaskId: similarTask._id,
+          duplicateReason: "Same title and timeframe"
+        };
+        throw error;
+      }
+
+      const task = new Task({
+        title: taskData.title,
+        description: taskData.description,
+        dueDate: dueDate,
+        status: taskData.status || 'pending',
+        owner: userId
+      });
+
+      await task.save();
+      await this.invalidateUserCache(userId);
+      return task;
+
     } catch (error) {
-      if (error.name === 'CastError') {
-        throw new Error('Invalid updates');
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error.name === "ValidationError") {
+        const valError = new ValidationError("Invalid input", 
+          Object.keys(error.errors).map(field => ({
+            field,
+            message: error.errors[field].message
+          }))
+        );
+        valError.statusCode = 400;
+        throw valError;
+      }
+      throw new DatabaseError("Error creating task");
+    }
+  }
+
+  async updateTask(taskId, updates, userId) {
+    try {
+      const allowedUpdates = ["title", "description", "status", "dueDate"];
+      const isValidOperation = Object.keys(updates).every(update => allowedUpdates.includes(update));
+
+      if (!isValidOperation) {
+        const valError = new ValidationError("Invalid updates", [
+          { field: "updates", message: "Contains invalid update fields" }
+        ]);
+        valError.statusCode = 400;
+        throw valError;
+      }
+
+      let task;
+      try {
+        task = await Task.findOne({ _id: taskId, owner: userId });
+      } catch (error) {
+        if (error.name === "CastError") {
+          const valError = new ValidationError("Invalid task ID format");
+          valError.statusCode = 400;
+          throw valError;
+        }
+        throw new DatabaseError("Error updating task");
+      }
+
+      if (!task) {
+        throw new NotFoundError("Task not found");
+      }
+
+      // Validate due date if it's being updated
+      if (updates.dueDate) {
+        const dueDate = new Date(updates.dueDate);
+        if (isNaN(dueDate.getTime())) {
+          const valError = new ValidationError("Invalid due date format", [
+            { field: "dueDate", message: "Date format is invalid" }
+          ]);
+          valError.statusCode = 400;
+          throw valError;
+        }
+        updates.dueDate = dueDate;
+      }
+
+      Object.assign(task, updates);
+      await task.save();
+      await this.invalidateUserCache(userId);
+      return task;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error.name === "ValidationError") {
+        const valError = new ValidationError("Invalid input", 
+          Object.keys(error.errors).map(field => ({
+            field,
+            message: error.errors[field].message
+          }))
+        );
+        valError.statusCode = 400;
+        throw valError;
       }
       throw error;
     }
-
-    Object.assign(task, updates);
-    await task.save();
-    
-    // Invalidate tasks cache for this user
-    await this.invalidateUserCache(userId);
-    
-    return task;
   }
 
-  /**
-   * Delete a task
-   * @param {string} taskId - Task ID
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Deleted task
-   */
   async deleteTask(taskId, userId) {
-    const task = await Task.findOneAndDelete({ _id: taskId, owner: userId });
-
-    if (!task) {
-      const error = new Error('Task not found');
-      error.statusCode = 404;
-      throw error;
+    try {
+      const task = await Task.findOneAndDelete({ _id: taskId, owner: userId });
+      if (!task) {
+        throw new NotFoundError("Task not found");
+      }
+      await this.invalidateUserCache(userId);
+      return task;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      if (error.name === "CastError") {
+        const valError = new ValidationError("Invalid task ID format");
+        valError.statusCode = 400;
+        throw valError;
+      }
+      throw new DatabaseError("Error deleting task");
     }
-
-    // Invalidate tasks cache for this user
-    await this.invalidateUserCache(userId);
-
-    return task;
   }
 
-  /**
-   * Get filtered tasks
-   * @param {Object} filters - Filter criteria
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} Filtered tasks
-   */
   async getFilteredTasks(filters, userId) {
     try {
       const match = { owner: userId };
-      
+
       if (filters.status) {
+        if (!['pending', 'completed'].includes(filters.status)) {
+          return [];
+        }
         match.status = filters.status;
       }
-      
+
       if (filters.dueDate) {
-        match.dueDate = { $lte: new Date(filters.dueDate) };
+        const dueDate = new Date(filters.dueDate);
+        if (isNaN(dueDate.getTime())) {
+          const valError = new ValidationError("Invalid due date format", [
+            { field: "dueDate", message: "Date format is invalid" }
+          ]);
+          valError.statusCode = 400;
+          throw valError;
+        }
+        match.dueDate = { $lte: dueDate };
       }
 
-      return await Task.find(match).sort({ createdAt: -1 });
+      const tasks = await Task.find(match).sort({ createdAt: -1 });
+      return tasks;
     } catch (error) {
-      throw new Error('Error fetching tasks');
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new DatabaseError("Error fetching tasks");
     }
   }
 
-  /**
-   * Invalidate user's tasks cache
-   * @param {string} userId - User ID
-   */
   async invalidateUserCache(userId) {
     await redisService.del(redisService.generateTasksCacheKey(userId));
   }

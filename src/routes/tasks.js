@@ -126,34 +126,53 @@ const router = express.Router();
  *                 $ref: '#/components/schemas/Task'
  */
 
-// Validation middleware
+// Import validation middleware
+const validateRequest = require('../middleware/validateRequest');
+
+// Validation schemas
 const createTaskValidation = [
-  body('title').trim().notEmpty().withMessage('Title is required'),
+  body('title')
+    .trim()
+    .notEmpty().withMessage('Title is required')
+    .isLength({ min: 3, max: 100 }).withMessage('Title must be between 3 and 100 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Description cannot exceed 500 characters'),
   body('dueDate')
-    .notEmpty()
-    .withMessage('Due date is required')
-    .isISO8601()
-    .withMessage('Invalid date format'),
+    .notEmpty().withMessage('Due date is required')
+    .isISO8601().withMessage('Invalid date format'),
   body('status')
     .optional()
     .isIn(['pending', 'completed'])
-    .withMessage('Status must be either pending or completed')
+    .withMessage('Status must be either pending or completed'),
+  body('priority')
+    .optional()
+    .isIn(['low', 'medium', 'high'])
+    .withMessage('Priority must be low, medium, or high')
 ];
 
 const updateTaskValidation = [
   body('title')
     .optional()
     .trim()
-    .notEmpty()
-    .withMessage('Title cannot be empty'),
+    .notEmpty().withMessage('Title cannot be empty')
+    .isLength({ min: 3, max: 100 }).withMessage('Title must be between 3 and 100 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 }).withMessage('Description cannot exceed 500 characters'),
   body('dueDate')
     .optional()
-    .isISO8601()
-    .withMessage('Invalid date format'),
+    .isISO8601().withMessage('Invalid date format'),
   body('status')
     .optional()
     .isIn(['pending', 'completed'])
-    .withMessage('Status must be either pending or completed')
+    .withMessage('Status must be either pending or completed'),
+  body('priority')
+    .optional()
+    .isIn(['low', 'medium', 'high'])
+    .withMessage('Priority must be low, medium, or high')
 ];
 
 // Protect all task routes with authentication

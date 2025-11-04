@@ -347,7 +347,7 @@ describe('Task Endpoints', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ title: 'Updated Task' });
 
-      expect(res.statusCode).toBe(500);
+      expect(res.statusCode).toBe(400);
     });
 
     it('should reject invalid update fields', async () => {
@@ -509,7 +509,7 @@ describe('Task Endpoints', () => {
         .query({ dueDate: 'not-a-date' })
         .set('Authorization', `Bearer ${authToken}`);
 
-      expect(res.statusCode).toBe(500);
+      expect(res.statusCode).toBe(400);
     });
 
     it('should handle invalid status in filter', async () => {

@@ -39,30 +39,15 @@ const clearDatabase = async () => {
   }
 };
 
-// Use redis-mock for tests
-const redisMock = require('redis-mock');
-const mockRedisClient = redisMock.createClient();
-const { promisify } = require('util');
-
-// Promisify and wrap redis-mock methods to match redis@4 interface
-const originalSet = promisify(mockRedisClient.set).bind(mockRedisClient);
-mockRedisClient.get = promisify(mockRedisClient.get).bind(mockRedisClient);
-mockRedisClient.set = async (key, value, options) => {
-  // redis-mock doesn't support options, just pass key and value
-  return originalSet(key, value);
-};
-mockRedisClient.del = promisify(mockRedisClient.del).bind(mockRedisClient);
-
-// Add async connect method to match real redis client
-mockRedisClient.connect = async () => {};
+// Use ioredis-mock for tests
+const RedisMock = require('ioredis-mock');
+const mockRedisClient = new RedisMock();
 
 // Make redis-mock client available globally
 global.__REDIS_CLIENT__ = mockRedisClient;
 
-// Mock the redis module to return our redis-mock client
-jest.mock('redis', () => ({
-  createClient: () => mockRedisClient
-}));
+// Mock the ioredis module to return our redis-mock client
+jest.mock('ioredis', () => require('ioredis-mock'));
 
 beforeAll(async () => {
   await connect();
